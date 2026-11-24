@@ -4,7 +4,6 @@ import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import multer from 'multer';
-import { createServer as createViteServer } from 'vite';
 import db, { initializeDatabase, TILE_CACHE_DIR, UPLOADS_DIR } from './server/db.ts';
 import {
   attachUser,
@@ -1596,7 +1595,7 @@ app.get('/api/map-tile/:z/:x/:y', async (req, res) => {
     return;
   }
 
-  const cacheFile = path.resolve(TILE_CACHE_DIR, `${z}_${x}_${y}.png`);
+  const cacheFile = path.resolve(TILE_CACHE_DIR, `dark_${z}_${x}_${y}.png`);
   if (!cacheFile.startsWith(TILE_CACHE_DIR + path.sep)) {
     res.status(400).end();
     return;
@@ -1610,7 +1609,7 @@ app.get('/api/map-tile/:z/:x/:y', async (req, res) => {
   }
 
   try {
-    const tileUrl = `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+    const tileUrl = `https://basemaps.cartocdn.com/dark_all/${z}/${x}/${y}.png`;
     const upstream = await fetch(tileUrl, {
       headers: {
         'User-Agent': 'SendsClub/1.0 (https://sendsclub.vip)',
@@ -1638,6 +1637,7 @@ async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';
 
   if (!isProd) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -1646,7 +1646,16 @@ async function startServer() {
   } else {
     const distDir = path.resolve(process.cwd(), 'dist');
     app.use(express.static(distDir));
-    app.get('*', (_req, res) => {
+    app.get('*', (req, res) => {
+      if (
+        req.path.startsWith('/api/') ||
+        req.path.startsWith('/uploads/') ||
+        req.path.startsWith('/assets/') ||
+        req.path.startsWith('/src/assets/')
+      ) {
+        res.status(404).json({ error: 'Not found' });
+        return;
+      }
       res.sendFile(path.join(distDir, 'index.html'));
     });
   }

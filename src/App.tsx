@@ -11,7 +11,6 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
 import { apiFetch } from './lib/api.ts';
 import type { AuthUser, NotificationItem, PostItem, PublicUser } from './types.ts';
 import { AuthPanel, type AuthMode } from './components/AuthPanel.tsx';
@@ -33,6 +32,7 @@ export default function App() {
 
   const [posts, setPosts] = useState<PostItem[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
+  const [postsError, setPostsError] = useState<string | null>(null);
   const [feedFilter, setFeedFilter] = useState<'all' | 'event' | 'announcement'>('all');
   const [eventsFilter, setEventsFilter] = useState<'all' | 'going' | 'interested'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,11 +53,12 @@ export default function App() {
 
   const fetchPosts = useCallback(async () => {
     setLoadingPosts(true);
+    setPostsError(null);
     try {
       const res = await apiFetch<{ posts: PostItem[] }>('/api/posts');
-      setPosts(res.posts);
-    } catch {
-      // ignore
+      setPosts(Array.isArray(res?.posts) ? res.posts : []);
+    } catch (err: any) {
+      setPostsError(err?.message || 'Unable to load posts from SendsClub server.');
     } finally {
       setLoadingPosts(false);
     }
@@ -66,8 +67,8 @@ export default function App() {
   const fetchNotifications = useCallback(async () => {
     try {
       const res = await apiFetch<{ unreadCount: number; notifications: NotificationItem[] }>('/api/notifications');
-      setNotifications(res.notifications);
-      setUnreadCount(res.unreadCount);
+      setNotifications(Array.isArray(res?.notifications) ? res.notifications : []);
+      setUnreadCount(typeof res?.unreadCount === 'number' ? res.unreadCount : 0);
     } catch {
       setNotifications([]);
       setUnreadCount(0);
@@ -198,9 +199,9 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#070709] text-zinc-100 pb-20 md:pb-12">
+    <div className="min-h-screen min-h-[100dvh] bg-[#070709] text-zinc-100 pb-20 md:pb-12">
       {/* Desktop & Mobile Top Bar (Three-Zone Contract on Desktop) */}
-      <header className="sticky top-0 z-40 bg-[#070709]/90 backdrop-blur-md border-b border-white/[0.08]">
+      <header className="sticky top-0 z-40 bg-[#070709]/[0.97] md:bg-[#070709]/90 md:backdrop-blur-md border-b border-white/[0.08]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-12 md:h-16 flex items-center justify-between gap-8">
           {/* Zone 1: Single-element Brand Wordmark */}
           <button
@@ -301,16 +302,8 @@ export default function App() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             {/* Primary Stream */}
             <div className="lg:col-span-8 space-y-5">
-              <AnimatePresence mode="wait">
-                {activeTab === 'home' && (
-                  <motion.div
-                    key="home"
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.16 }}
-                    className="space-y-5"
-                  >
+              {activeTab === 'home' && (
+                <div className="space-y-5">
                     {/* Editorial Feed Header & Controls */}
                     <div className="bg-[#111216] border border-white/[0.08] rounded-2xl p-5 sm:p-6 space-y-4">
                       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
@@ -376,9 +369,21 @@ export default function App() {
                         {[1, 2].map((n) => (
                           <div
                             key={n}
-                            className="h-80 rounded-2xl bg-[#111216] border border-white/[0.06] animate-pulse"
+                            className="h-72 rounded-2xl bg-[#111216] border border-white/[0.06]"
                           />
                         ))}
+                      </div>
+                    ) : postsError ? (
+                      <div className="bg-[#111216] border border-red-500/30 rounded-2xl p-6 text-center space-y-3">
+                        <p className="font-display font-semibold text-base text-white">Unable to load SendsClub feed</p>
+                        <p className="text-xs text-zinc-400">{postsError}</p>
+                        <button
+                          type="button"
+                          onClick={fetchPosts}
+                          className="min-h-[40px] px-4 py-2 rounded-xl bg-[#C8FF00] text-black font-semibold text-xs"
+                        >
+                          Retry
+                        </button>
                       </div>
                     ) : filteredHomePosts.length === 0 ? (
                       <div className="bg-[#111216] border border-white/[0.08] rounded-2xl p-8 text-center space-y-2">
@@ -411,18 +416,11 @@ export default function App() {
                         ))}
                       </div>
                     )}
-                  </motion.div>
-                )}
+                </div>
+              )}
 
-                {activeTab === 'events' && (
-                  <motion.div
-                    key="events"
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.16 }}
-                    className="space-y-5"
-                  >
+              {activeTab === 'events' && (
+                <div className="space-y-5">
                     <div className="bg-[#111216] border border-white/[0.08] rounded-2xl p-5 sm:p-6 space-y-4">
                       <div>
                         <h1 className="font-display font-bold text-2xl text-white">Upcoming Events</h1>
@@ -492,66 +490,41 @@ export default function App() {
                         ))}
                       </div>
                     )}
-                  </motion.div>
-                )}
+                </div>
+              )}
 
-                {activeTab === 'community' && (
-                  <motion.div
-                    key="community"
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.16 }}
-                  >
-                    <CommunityView
-                      onOpenPost={jumpToPost}
-                      onViewMember={openMemberProfile}
-                    />
-                  </motion.div>
-                )}
+              {activeTab === 'community' && (
+                <CommunityView
+                  onOpenPost={jumpToPost}
+                  onViewMember={openMemberProfile}
+                />
+              )}
 
-                {activeTab === 'notifications' && (
-                  <motion.div
-                    key="notifications"
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.16 }}
-                  >
-                    <NotificationsView
-                      currentUser={currentUser}
-                      notifications={notifications}
-                      unreadCount={unreadCount}
-                      onMarkRead={handleMarkNotificationRead}
-                      onOpenPost={jumpToPost}
-                      onRequireAuth={() => openAuth('login')}
-                    />
-                  </motion.div>
-                )}
+              {activeTab === 'notifications' && (
+                <NotificationsView
+                  currentUser={currentUser}
+                  notifications={notifications}
+                  unreadCount={unreadCount}
+                  onMarkRead={handleMarkNotificationRead}
+                  onOpenPost={jumpToPost}
+                  onRequireAuth={() => openAuth('login')}
+                />
+              )}
 
-                {activeTab === 'profile' && (
-                  <motion.div
-                    key="profile"
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.16 }}
-                  >
-                    <ProfileView
-                      currentUser={currentUser}
-                      adminConfigured={adminConfigured}
-                      envManaged={envManaged}
-                      onUserUpdated={(u) => {
-                        setCurrentUser(u);
-                        refreshBootstrap();
-                        fetchPosts();
-                      }}
-                      onOpenPost={jumpToPost}
-                      onOpenAdmin={() => setActiveTab('admin')}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {activeTab === 'profile' && (
+                <ProfileView
+                  currentUser={currentUser}
+                  adminConfigured={adminConfigured}
+                  envManaged={envManaged}
+                  onUserUpdated={(u) => {
+                    setCurrentUser(u);
+                    refreshBootstrap();
+                    fetchPosts();
+                  }}
+                  onOpenPost={jumpToPost}
+                  onOpenAdmin={() => setActiveTab('admin')}
+                />
+              )}
             </div>
 
             {/* Right Contextual Rail (Desktop Presence) */}
@@ -674,7 +647,7 @@ export default function App() {
       {/* Mobile Bottom Tab Bar (Thumb Zone, <=15% sticky height cap) */}
       <nav
         aria-label="Mobile navigation"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0A0B0E]/95 backdrop-blur-md border-t border-white/[0.08] pb-safe"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0A0B0E] border-t border-white/[0.08] pb-safe"
       >
         <div className="grid grid-cols-5 h-14 items-center">
           {navItems.map((item) => {

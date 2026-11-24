@@ -23,7 +23,8 @@ import type { AuthUser, PostComment, PostItem, PublicUser } from '../types.ts';
 import { Avatar, FlyerMedia } from './Avatar.tsx';
 import { LocationMapSnippet } from './LocationMapSnippet.tsx';
 
-function formatRelativeTime(isoString: string): string {
+function formatRelativeTime(isoString: string | null | undefined): string {
+  if (!isoString || typeof isoString !== 'string') return '';
   const date = new Date(isoString.includes('T') ? isoString : `${isoString.replace(' ', 'T')}Z`);
   const diffSec = Math.floor((Date.now() - date.getTime()) / 1000);
   if (Number.isNaN(diffSec) || diffSec < 60) return 'Just now';
@@ -33,7 +34,8 @@ function formatRelativeTime(isoString: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function formatEventDate(dateStr: string): string {
+function formatEventDate(dateStr: string | null | undefined): string {
+  if (!dateStr || typeof dateStr !== 'string') return '';
   const d = new Date(`${dateStr}T00:00:00`);
   if (Number.isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -273,7 +275,19 @@ export function PostCard({
     }
   }
 
-  const activeImage = post.images[imageIndex]?.imageUrl;
+  const images = Array.isArray(post.images) ? post.images : [];
+  const goingPreview = Array.isArray(post.goingPreview) ? post.goingPreview : [];
+  const author = post.author || {
+    id: post.authorId || 0,
+    username: 'sendsclub',
+    displayName: 'SendsClub',
+    avatarUrl: null,
+    bio: '',
+    role: 'system' as const,
+    createdAt: '',
+  };
+  const safeImageIndex = images.length > 0 ? imageIndex % images.length : 0;
+  const activeImage = images[safeImageIndex]?.imageUrl;
 
   function renderCommentNode(comment: PostComment, isReply = false) {
     const canEdit = currentUser?.id === comment.userId;
@@ -450,11 +464,11 @@ export function PostCard({
       {/* Header */}
       <div className="px-4 sm:px-6 pt-5 pb-3.5 flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <Avatar src={post.author.avatarUrl} name={post.author.displayName} size="md" />
+          <Avatar src={author.avatarUrl} name={author.displayName} size="md" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
-              <span className="font-semibold text-white truncate">{post.author.displayName}</span>
-              <span className="text-xs text-zinc-500 truncate">@{post.author.username}</span>
+              <span className="font-semibold text-white truncate">{author.displayName}</span>
+              <span className="text-xs text-zinc-500 truncate">@{author.username}</span>
             </div>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-400 mt-0.5">
               <span>{post.postType === 'event' ? 'Party / Event' : post.postType === 'announcement' ? 'Announcement' : 'Update'}</span>
@@ -520,22 +534,22 @@ export function PostCard({
       </div>
 
       {/* Flyer Gallery */}
-      {post.images.length > 0 && activeImage && (
+      {images.length > 0 && activeImage && (
         <div className="relative bg-[#070709] border-y border-white/[0.06]">
           <div className="relative w-full max-h-[540px] overflow-hidden flex items-center justify-center bg-[#070709]">
             <FlyerMedia
               src={activeImage}
-              alt={`${post.title} flyer ${imageIndex + 1}`}
+              alt={`${post.title} flyer ${safeImageIndex + 1}`}
               title={post.title}
               onClick={() => setLightboxOpen(true)}
               className="w-full max-h-[540px] object-cover cursor-zoom-in"
             />
-            {post.images.length > 1 && (
+            {images.length > 1 && (
               <>
                 <button
                   type="button"
                   aria-label="Previous flyer"
-                  onClick={() => setImageIndex((i) => (i - 1 + post.images.length) % post.images.length)}
+                  onClick={() => setImageIndex((i) => (i - 1 + images.length) % images.length)}
                   className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/70 hover:bg-black/90 text-white border border-white/15 flex items-center justify-center transition-colors"
                 >
                   <ChevronLeft className="w-5 h-5" />
@@ -543,27 +557,27 @@ export function PostCard({
                 <button
                   type="button"
                   aria-label="Next flyer"
-                  onClick={() => setImageIndex((i) => (i + 1) % post.images.length)}
+                  onClick={() => setImageIndex((i) => (i + 1) % images.length)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/70 hover:bg-black/90 text-white border border-white/15 flex items-center justify-center transition-colors"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
                 <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-md bg-black/75 border border-white/10 text-[11px] font-mono tabular-nums text-zinc-200">
-                  {imageIndex + 1} / {post.images.length}
+                  {safeImageIndex + 1} / {images.length}
                 </div>
               </>
             )}
           </div>
 
-          {post.images.length > 1 && (
+          {images.length > 1 && (
             <div className="px-4 py-2.5 flex items-center gap-2 overflow-x-auto bg-[#0B0C0F] border-t border-white/[0.06]">
-              {post.images.map((img, idx) => (
+              {images.map((img, idx) => (
                 <button
                   key={img.id}
                   type="button"
                   onClick={() => setImageIndex(idx)}
                   className={`w-14 h-14 rounded-lg overflow-hidden shrink-0 border transition-all ${
-                    idx === imageIndex
+                    idx === safeImageIndex
                       ? 'border-[#C8FF00] opacity-100'
                       : 'border-white/10 opacity-55 hover:opacity-90'
                   }`}
@@ -637,9 +651,9 @@ export function PostCard({
             onClick={openAttendees}
             className="flex items-center gap-2.5 hover:text-zinc-200 transition-colors text-left"
           >
-            {post.goingPreview.length > 0 && (
+            {goingPreview.length > 0 && (
               <div className="flex -space-x-2">
-                {post.goingPreview.slice(0, 4).map((u) => (
+                {goingPreview.slice(0, 4).map((u) => (
                   <Avatar
                     key={u.id}
                     src={u.avatarUrl}

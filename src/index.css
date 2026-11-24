@@ -13,12 +13,22 @@
     color: #f4f4f5;
     font-family: var(--font-sans);
     scroll-behavior: smooth;
+    min-height: 100%;
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
     background-color: #070709;
     color: #f4f4f5;
     letter-spacing: 0.005em;
+    min-height: 100%;
+    overflow-x: hidden;
+  }
+
+  #root {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background-color: #070709;
   }
 
   h1, h2, h3, .font-display {

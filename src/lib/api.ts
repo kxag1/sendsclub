@@ -34,9 +34,23 @@ export async function apiFetch<T>(url: string, options: RequestInit = {}): Promi
     credentials: 'include',
   });
 
-  const data = await res.json().catch(() => ({}));
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const textPreview = await res.text().catch(() => '');
+    throw new ApiError(
+      res.ok
+        ? 'Unexpected non-JSON response from server.'
+        : `Request failed (${res.status})${textPreview ? '' : ''}`,
+      res.status
+    );
+  }
+
+  const data = await res.json().catch(() => null);
   if (!res.ok) {
     throw new ApiError(data?.error || `Request failed (${res.status})`, res.status);
+  }
+  if (data === null || typeof data !== 'object') {
+    throw new ApiError('Invalid JSON response from server.', res.status);
   }
   return data as T;
 }
@@ -50,5 +64,5 @@ export async function uploadImages(files: File[]): Promise<string[]> {
     method: 'POST',
     body: formData,
   });
-  return data.urls;
+  return Array.isArray(data.urls) ? data.urls : [];
 }

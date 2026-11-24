@@ -18,8 +18,8 @@ const SIZE_CLASSES: Record<NonNullable<AvatarProps['size']>, string> = {
 
 export function Avatar({ src, name, size = 'md', className = '' }: AvatarProps) {
   const [errored, setErrored] = useState(false);
-  const initials = name
-    .trim()
+  const safeName = typeof name === 'string' && name.trim() ? name.trim() : 'SendsClub';
+  const initials = safeName
     .split(/\s+/)
     .slice(0, 2)
     .map((p) => p[0]?.toUpperCase() || '')
