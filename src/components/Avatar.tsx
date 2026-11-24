@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Disc3 } from 'lucide-react';
+import { resolveMediaUrl } from '../lib/api.ts';
 
 interface AvatarProps {
   src: string | null | undefined;
@@ -27,7 +28,9 @@ export function Avatar({ src, name, size = 'md', className = '' }: AvatarProps) 
 
   const sizeCls = SIZE_CLASSES[size];
 
-  if (!src || errored) {
+  const resolvedSrc = src ? resolveMediaUrl(src) : '';
+
+  if (!resolvedSrc || errored) {
     return (
       <div
         aria-label={name}
@@ -40,7 +43,7 @@ export function Avatar({ src, name, size = 'md', className = '' }: AvatarProps) 
 
   return (
     <img
-      src={src}
+      src={resolvedSrc}
       alt={name}
       referrerPolicy="no-referrer"
       onError={() => setErrored(true)}
@@ -60,7 +63,9 @@ interface FlyerMediaProps {
 export function FlyerMedia({ src, alt, title, className = '', onClick }: FlyerMediaProps) {
   const [errored, setErrored] = useState(false);
 
-  if (!src || errored) {
+  const resolvedSrc = src ? resolveMediaUrl(src) : '';
+
+  if (!resolvedSrc || errored) {
     return (
       <div
         onClick={onClick}
@@ -75,7 +80,7 @@ export function FlyerMedia({ src, alt, title, className = '', onClick }: FlyerMe
 
   return (
     <img
-      src={src}
+      src={resolvedSrc}
       alt={alt}
       referrerPolicy="no-referrer"
       onError={() => setErrored(true)}

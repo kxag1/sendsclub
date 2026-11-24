@@ -18,7 +18,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { apiFetch } from '../lib/api.ts';
+import { apiFetch, resolveMediaUrl } from '../lib/api.ts';
 import type { AuthUser, PostComment, PostItem, PublicUser } from '../types.ts';
 import { Avatar, FlyerMedia } from './Avatar.tsx';
 import { LocationMapSnippet } from './LocationMapSnippet.tsx';
@@ -827,7 +827,7 @@ export function PostCard({
           </button>
           <div onClick={(e) => e.stopPropagation()} className="max-w-4xl max-h-[88vh] flex flex-col items-center">
             <img
-              src={activeImage}
+              src={resolveMediaUrl(activeImage)}
               alt={post.title}
               referrerPolicy="no-referrer"
               className="max-h-[82vh] w-auto rounded-xl object-contain border border-white/10"

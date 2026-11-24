@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ExternalLink, MapPin } from 'lucide-react';
-import { apiFetch } from '../lib/api.ts';
+import { apiFetch, resolveApiUrl } from '../lib/api.ts';
 
 interface GeocodeResult {
   found: boolean;
@@ -118,7 +118,7 @@ export function LocationMapSnippet({ location }: LocationMapSnippetProps) {
               t.y !== null ? (
                 <img
                   key={t.key}
-                  src={`/api/map-tile/${ZOOM}/${t.x}/${t.y}`}
+                  src={resolveApiUrl(`/api/map-tile/${ZOOM}/${t.x}/${t.y}`)}
                   alt=""
                   loading="lazy"
                   decoding="async"

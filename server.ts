@@ -25,6 +25,46 @@ initializeDatabase();
 const app = express();
 app.set('trust proxy', 1);
 app.use(express.json({ limit: '2mb' }));
+
+const ALLOWED_ORIGINS = new Set<string>([
+  'https://the.sendsclub.vip',
+  'https://sendsclub.vip',
+  'https://www.sendsclub.vip',
+  ...(process.env.APP_URL ? [process.env.APP_URL.replace(/\/+$/, '')] : []),
+  ...(process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean)
+    : []),
+]);
+
+app.use('/api', (req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  }
+  if (!req.path.startsWith('/map-tile/')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+  }
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+  next();
+});
+
+app.get('/api/health', (_req, res) => {
+  try {
+    const row = db.prepare(`SELECT COUNT(*) AS count FROM posts`).get() as { count: number };
+    res.json({ ok: true, db: 'connected', postsCount: row.count });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err?.message || 'Database check failed' });
+  }
+});
+
 app.use(attachUser);
 
 // Serve persistent uploaded flyers & avatars safely
@@ -32,6 +72,7 @@ app.use(
   '/uploads',
   (_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.setHeader('Cache-Control', 'public, max-age=86400');
     next();
   },
@@ -1603,6 +1644,7 @@ app.get('/api/map-tile/:z/:x/:y', async (req, res) => {
 
   if (fs.existsSync(cacheFile)) {
     res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.setHeader('Cache-Control', 'public, max-age=604800');
     res.sendFile(cacheFile);
     return;
@@ -1623,6 +1665,7 @@ app.get('/api/map-tile/:z/:x/:y', async (req, res) => {
     const buf = Buffer.from(await upstream.arrayBuffer());
     fs.writeFile(cacheFile, buf, () => {});
     res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.setHeader('Cache-Control', 'public, max-age=604800');
     res.send(buf);
   } catch {

@@ -1,5 +1,24 @@
 let authToken: string | null = null;
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/+$/, '');
+
+export function resolveApiUrl(path: string): string {
+  if (!API_BASE_URL || /^https?:\/\//i.test(path)) {
+    return path;
+  }
+  return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+export function resolveMediaUrl(src: string): string {
+  if (!src || /^https?:\/\//i.test(src) || src.startsWith('data:')) {
+    return src;
+  }
+  if (src.startsWith('/uploads/') || src.startsWith('/api/')) {
+    return resolveApiUrl(src);
+  }
+  return src;
+}
+
 export function setAuthToken(token: string | null) {
   authToken = token;
 }
@@ -17,6 +36,7 @@ export class ApiError extends Error {
 }
 
 export async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
+  const targetUrl = resolveApiUrl(url);
   const headers = new Headers(options.headers || {});
   if (!headers.has('X-Requested-With')) {
     headers.set('X-Requested-With', 'SendsClub');
@@ -28,7 +48,7 @@ export async function apiFetch<T>(url: string, options: RequestInit = {}): Promi
     headers.set('Content-Type', 'application/json');
   }
 
-  const res = await fetch(url, {
+  const res = await fetch(targetUrl, {
     ...options,
     headers,
     credentials: 'include',
@@ -37,10 +57,11 @@ export async function apiFetch<T>(url: string, options: RequestInit = {}): Promi
   const contentType = res.headers.get('content-type') || '';
   if (!contentType.includes('application/json')) {
     const textPreview = await res.text().catch(() => '');
+    const isHtml = /^\s*<!doctype|^\s*<html/i.test(textPreview);
     throw new ApiError(
-      res.ok
-        ? 'Unexpected non-JSON response from server.'
-        : `Request failed (${res.status})${textPreview ? '' : ''}`,
+      isHtml
+        ? `API route ${url} returned HTML instead of JSON. Ensure the SendsClub Node server (server.ts) is running and handling /api/* requests.`
+        : `Unexpected non-JSON response (${res.status}) from ${url}.`,
       res.status
     );
   }
